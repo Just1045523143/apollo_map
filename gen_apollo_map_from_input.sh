@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APOLLO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+
+usage() {
+  cat <<EOF
+Usage:
+  $(basename "$0") [XODR_DIR XODR_NAME [MAP_NAME [OUTPUT_ROOT]]]
+
+Examples:
+  $(basename "$0") /data/maps road.xodr
+  $(basename "$0") /data/maps road.xodr test_track /opt/apollo/modules/map/data
+
+With no arguments, the script prompts for XODR_DIR and XODR_NAME.
+The default map name is the XODR filename without the .xodr suffix.
+The default output root is:
+  ${APOLLO_ROOT}/modules/map/data
+
+Environment overrides:
+  IMAP_BIN=/path/to/imap
+EOF
+}
+
+fail() {
+  echo "[ERROR] $*" >&2
+  exit 1
+}
+
+resolve_imap() {
+  local candidate
+
+  if [[ -n "${IMAP_BIN:-}" ]]; then
+    [[ -x "${IMAP_BIN}" ]] || fail "IMAP_BIN is not executable: ${IMAP_BIN}"
+    printf '%s\n' "${IMAP_BIN}"
+    return
+  fi
+
+  if command -v imap >/dev/null 2>&1; then
+    command -v imap
+    return
+  fi
+
+  for candidate in \
+    ~/.local/bin/imap \
+    /opt/apollo/neo/bin/imap \
+    /opt/apollo/bin/imap; do
+    if [[ -x "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return
+    fi
+  done
+
+  fail "imap was not found. Install it or set IMAP_BIN=/path/to/imap"
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if (( $# > 4 )); then
+  usage >&2
+  exit 2
+fi
+
+xodr_dir="${1:-}"
+xodr_name="${2:-}"
+map_name="${3:-}"
+output_root="${4:-${APOLLO_ROOT}/modules/map/data}"
+
+if [[ -z "${xodr_dir}" ]]; then
+  read -r -p "XODR directory: " xodr_dir
+fi
+if [[ -z "${xodr_name}" ]]; then
+  read -r -p "XODR filename: " xodr_name
+fi
+
+[[ -n "${xodr_dir}" ]] || fail "XODR directory cannot be empty"
+[[ -n "${xodr_name}" ]] || fail "XODR filename cannot be empty"
+
+xodr_dir="${xodr_dir%/}"
+xodr_path="${xodr_dir}/${xodr_name}"
+[[ -f "${xodr_path}" ]] || fail "XODR file does not exist: ${xodr_path}"
+
+if [[ -z "${map_name}" ]]; then
+  map_name="$(basename "${xodr_name}")"
+  map_name="${map_name%.[xX][oO][dD][rR]}"
+fi
+[[ -n "${map_name}" ]] || fail "Map name cannot be empty"
+[[ "${map_name}" != */* && "${map_name}" != "." && "${map_name}" != ".." ]] || \
+  fail "Invalid map name: ${map_name}"
+
+imap_bin="$(resolve_imap)"
+map_dir="${output_root%/}/${map_name}"
+mkdir -p "${map_dir}"
+base_map="${map_dir}/base_map.bin"
+
+echo "[INFO] XODR input : ${xodr_path}"
+echo "[INFO] Map output : ${map_dir}"
+echo "[INFO] Converter  : ${imap_bin}"
+
+"${imap_bin}" -f -i "${xodr_path}" -o "${base_map}"
+[[ -s "${base_map}" ]] || fail "base_map.bin was not generated: ${base_map}"
+
+"${SCRIPT_DIR}/gen_dep_map_from_input.sh" "${output_root}" "${map_name}"
+
+echo "[INFO] Apollo map generation completed: ${map_dir}"

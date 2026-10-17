@@ -33,7 +33,7 @@ You can use the Apollo map in the following steps.
 2. **Convert OpenDRIVE Map to Apollo Format:**
 
    ```bash
-   sh gen_apollo_map.sh
+   sh gen_apollo_map_from_town_index.sh
    ```
 
    This script converts the OpenDRIVE format map into the format required by Apollo.
@@ -49,7 +49,7 @@ You can use the Apollo map in the following steps.
 4. **Generate Routing Map:**
 
    ```bash
-   sh gen_dep_map.sh
+   sh gen_dep_map_from_town_index.sh
    ```
 
    This step generates a routing map for path planning.
@@ -66,3 +66,15 @@ You can use the Apollo map in the following steps.
 
 * Ensure you have the necessary permissions to execute the scripts.
 * Refer to the official Apollo project documentation for more detailed information on Apollo maps.
+
+### my command list
+首先需要安装imap
+```bash
+pip3 install imap_box
+```
+安装好后直接执行：
+```bash
+cd modules/map/apollo_map
+#                                xodr目录             xodr地图名字
+./gen_apollo_map_from_input.sh ./opendrive/rong_map/ rong_map.xodr  # 在modules/map/data目录下生成完整的地图
+```
