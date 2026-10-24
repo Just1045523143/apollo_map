@@ -72,7 +72,21 @@ You can use the Apollo map in the following steps.
 ```bash
 pip3 install imap_box
 ```
-安装好后直接执行：
+
+首次使用时，在 Apollo 容器内编译道路宽度后处理工具：
+
+```bash
+./modules/map/build_map.sh
+```
+
+生成顺序为：标准 OpenDRIVE 经 `imap` 转换为 `base_map.bin`，然后
+`road_width_sample_generator` 补齐 Apollo 专用的
+`left_road_sample/right_road_sample`，最后生成 `sim_map` 和 `routing_map`。
+后处理器仅合并 `left/right_neighbor_forward_lane_id` 连通的同向
+`CITY_DRIVING` 车道，不会把对向车道或路肩计入 Planning 道路宽度。
+
+
+安装并编译好后直接执行：
 ```bash
 cd modules/map/apollo_map
 #                                xodr目录             xodr地图名字
