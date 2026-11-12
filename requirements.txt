@@ -1,0 +1,4 @@
+# Map schemas are bundled in imap/proto/map.desc; no Apollo Python packages needed.
+protobuf>=3.19
+# Optional for interactive -m visualization: matplotlib
+# Optional for imap.lib.proj_helper geodetic utilities: pyproj

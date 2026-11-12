@@ -20,6 +20,8 @@ The default output root is:
   ${APOLLO_ROOT}/modules/map/data
 
 Environment overrides:
+  IMAP_PYTHON=python3
+  STOP_LINE_OFFSET=1.0  # Local imap fallback distance before signal.s, metres
   IMAP_BIN=/path/to/imap
   ROAD_WIDTH_SAMPLE_GENERATOR_BIN=/path/to/road_width_sample_generator
 EOF
@@ -31,30 +33,14 @@ fail() {
 }
 
 resolve_imap() {
-  local candidate
-
   if [[ -n "${IMAP_BIN:-}" ]]; then
     [[ -x "${IMAP_BIN}" ]] || fail "IMAP_BIN is not executable: ${IMAP_BIN}"
     printf '%s\n' "${IMAP_BIN}"
     return
   fi
 
-  if command -v imap >/dev/null 2>&1; then
-    command -v imap
-    return
-  fi
-
-  for candidate in \
-    ~/.local/bin/imap \
-    /opt/apollo/neo/bin/imap \
-    /opt/apollo/bin/imap; do
-    if [[ -x "${candidate}" ]]; then
-      printf '%s\n' "${candidate}"
-      return
-    fi
-  done
-
-  fail "imap was not found. Install it or set IMAP_BIN=/path/to/imap"
+  [[ -x "${SCRIPT_DIR}/imap.sh" ]] || fail "Local imap launcher is missing: ${SCRIPT_DIR}/imap.sh"
+  printf '%s\n' "${SCRIPT_DIR}/imap.sh"
 }
 
 resolve_road_width_sample_generator() {
@@ -133,7 +119,11 @@ echo "[INFO] Map output : ${map_dir}"
 echo "[INFO] Converter  : ${imap_bin}"
 echo "[INFO] Postprocess: ${road_width_sample_generator}"
 
-"${imap_bin}" -f -i "${xodr_path}" -o "${base_map}"
+imap_args=()
+if [[ -n "${STOP_LINE_OFFSET:-}" ]]; then
+  imap_args+=(--stop-line-offset "${STOP_LINE_OFFSET}")
+fi
+"${imap_bin}" -f -i "${xodr_path}" -o "${base_map}" "${imap_args[@]}"
 [[ -s "${base_map}" ]] || fail "base_map.bin was not generated: ${base_map}"
 
 "${road_width_sample_generator}" --map_dir="${map_dir}"

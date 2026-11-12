@@ -1,12 +1,18 @@
-#!/bin/bash
-
-echo "Start generating Apollo map."
-
+#!/usr/bin/env bash
+set -Eeuo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if (( $# > 1 )); then
+  echo "Usage: $(basename "$0") [OUTPUT_ROOT]" >&2
+  exit 2
+fi
+# Use the same conversion/postprocessing pipeline as custom OpenDRIVE maps.
+# An optional argument selects the output root; defaults to modules/map/data.
 for index in $(seq -w 1 12); do
-  if [ -f opendrive/town${index}/Town${index}.xodr ]; then
-    echo start to convert \"opendrive/town${index}/Town${index}.xodr\" to \"apollo/town${index}/base_map.bin\"
-    imap -f -i opendrive/town${index}/Town${index}.xodr -o apollo/town${index}/base_map.bin
+  input="${SCRIPT_DIR}/opendrive/town${index}/Town${index}.xodr"
+  if [[ -f "${input}" ]]; then
+    "${SCRIPT_DIR}/gen_apollo_map_from_input.sh" \
+      "$(dirname "${input}")" "$(basename "${input}")" "town${index}" "$@"
   else
-    echo \"opendrive/town${index}/Town${index}.xodr\" does not exist!
+    echo "[INFO] Skipping missing map: ${input}"
   fi
 done
